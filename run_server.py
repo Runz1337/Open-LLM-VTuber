@@ -2,6 +2,7 @@ import os
 import sys
 import atexit
 import argparse
+import socket
 from pathlib import Path
 import tomli
 import uvicorn
@@ -17,14 +18,24 @@ os.environ["MODELSCOPE_CACHE"] = str(Path(__file__).parent / "models")
 
 # Default values
 DEFAULT_HOST = "0.0.0.0"
-DEFAULT_PORT = 8080  # Use a port that is more accessible in Colab
+DEFAULT_PORT = 8080  # Initial port to try
 
+def find_free_port(start_port: int) -> int:
+    """Return the first free port starting from start_port."""
+    port = start_port
+    while True:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind((DEFAULT_HOST, port))
+                # If bind succeeds, the port is free.
+                return port
+            except OSError:
+                port += 1
 
 def get_version() -> str:
     with open("pyproject.toml", "rb") as f:
         pyproject = tomli.load(f)
     return pyproject["project"]["version"]
-
 
 def init_logger(console_log_level: str = "INFO") -> None:
     logger.remove()
@@ -44,7 +55,6 @@ def init_logger(console_log_level: str = "INFO") -> None:
         diagnose=True,
     )
 
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Open-LLM-VTuber Server")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
@@ -52,7 +62,6 @@ def parse_args():
     parser.add_argument("--host", type=str, default=DEFAULT_HOST, help="Host to bind")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Port to bind")
     return parser.parse_args()
-
 
 @logger.catch
 def run(console_log_level: str, host: str, port: int):
@@ -70,11 +79,17 @@ def run(console_log_level: str, host: str, port: int):
     config: Config = validate_config(read_yaml("conf.yaml"))
     server_config = config.system_config
 
-    # Use default or overridden values
+    # Use provided or default host/port values
     host = host or server_config.host or DEFAULT_HOST
-    port = port or server_config.port or DEFAULT_PORT
+    desired_port = port or server_config.port or DEFAULT_PORT
 
-    # Start ngrok tunnel
+    # Automatically find a free port starting at the desired_port
+    free_port = find_free_port(desired_port)
+    if free_port != desired_port:
+        logger.info(f"Desired port {desired_port} is in use. Using available port {free_port} instead.")
+    port = free_port
+
+    # Start ngrok tunnel on the chosen port
     ngrok.set_auth_token("2IwNxqGud7HOcTBJCALT9u05aRg_2g4D2jTgPi7RxridKLbBg")  # Your ngrok token
     public_url = ngrok.connect(port, "http")
     logger.info(f"ngrok tunnel '{public_url}' -> 'http://{host}:{port}'")
@@ -82,7 +97,7 @@ def run(console_log_level: str, host: str, port: int):
     # Ensure ngrok is disconnected on exit
     atexit.register(lambda: ngrok.disconnect(public_url))
 
-    # Start the WebSocket server
+    # Start the WebSocket server using uvicorn
     server = WebSocketServer(config=config)
     uvicorn.run(
         app=server.app,
@@ -90,7 +105,6 @@ def run(console_log_level: str, host: str, port: int):
         port=port,
         log_level=console_log_level.lower(),
     )
-
 
 if __name__ == "__main__":
     args = parse_args()
@@ -105,4 +119,3 @@ if __name__ == "__main__":
         os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 
     run(console_log_level=console_log_level, host=args.host, port=args.port)
-    
