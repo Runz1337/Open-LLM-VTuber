@@ -9,6 +9,7 @@ from loguru import logger
 from upgrade import sync_user_config, select_language
 from src.open_llm_vtuber.server import WebSocketServer
 from src.open_llm_vtuber.config_manager import Config, read_yaml, validate_config
+from pyngrok import ngrok  # Added import for ngrok
 
 os.environ["HF_HOME"] = str(Path(__file__).parent / "models")
 os.environ["MODELSCOPE_CACHE"] = str(Path(__file__).parent / "models")
@@ -67,6 +68,20 @@ def run(console_log_level: str):
     config: Config = validate_config(read_yaml("conf.yaml"))
     server_config = config.system_config
 
+    # Create ngrok tunnel for the uvicorn server
+    # Set your ngrok auth token
+    ngrok.set_auth_token("2IwNxqGud7HOcTBJCALT9u05aRg_2g4D2jTgPi7RxridKLbBg")
+
+# Create ngrok tunnel for the uvicorn server
+    public_url = ngrok.connect(server_config.port)
+    logger.info(f'ngrok tunnel "{public_url}" -> "http://{server_config.host}:{server_config.port}"')
+
+# Ensure the ngrok tunnel is disconnected on exit
+
+
+    # Ensure the ngrok tunnel is disconnected on exit
+    atexit.register(lambda: ngrok.disconnect(public_url))
+
     # Initialize and run the WebSocket server
     server = WebSocketServer(config=config)
     uvicorn.run(
@@ -89,3 +104,4 @@ if __name__ == "__main__":
     if args.hf_mirror:
         os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
     run(console_log_level=console_log_level)
+    
