@@ -95,6 +95,9 @@ def run(console_log_level: str, host: str, port: int):
     logger.info(f"ngrok tunnel '{public_url}' -> 'http://{host}:{port}'")
     js_file_path = "frontend/assets/main-DsLaT6SU.js"  # Adjust path as needed
     ws_url=str(public_url).replace("https", "wss")
+    os.environ["WS_NGROK_URL"] = ws_url
+    os.environ["BASE_NGROK_URL"] = str(public_url)
+
     with open(js_file_path, "r", encoding="utf-8") as file:
        js_content = file.read()
 
