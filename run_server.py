@@ -93,7 +93,7 @@ def run(console_log_level: str, host: str, port: int):
     ngrok.set_auth_token("2IwNxqGud7HOcTBJCALT9u05aRg_2g4D2jTgPi7RxridKLbBg")  # Your ngrok token
     public_url = ngrok.connect(port, "http")
     logger.info(f"ngrok tunnel '{public_url}' -> 'http://{host}:{port}'")
-    js_file_path = "frontend/assets/main.js"  # Adjust path as needed
+    js_file_path = "frontend/assets/main-DsLaT6SU.js"  # Adjust path as needed
     ws_url=public_url.replace("https", "wss")
     with open(js_file_path, "r", encoding="utf-8") as file:
        js_content = file.read()
