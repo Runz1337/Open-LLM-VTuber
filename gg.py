@@ -100,7 +100,7 @@ def run(console_log_level: str, host: str, port: int):
 
 # Replace old URLs with new Ngrok ones
     js_content = js_content.replace("ws://localhost:12393", ws_url)
-    js_content = js_content.replace("http://localhost:12393", public_url)
+    js_content = js_content.replace("http://localhost:12393", str(public_url))
 
 # Save the updated JavaScript file
     with open(js_file_path, "w", encoding="utf-8") as file:
